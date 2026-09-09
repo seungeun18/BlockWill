@@ -30,6 +30,7 @@ __pycache__/
 # 생성 파일
 artifacts/
 coverage/
+dist/
 *.log
 *.db-*
 

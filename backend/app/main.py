@@ -1,7 +1,9 @@
 import hashlib
 import json
+import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from openai import OpenAIError
 from .models import AnalyzeRequest, Policy, Confirmation
@@ -10,6 +12,22 @@ from .security import SensitiveInput
 
 app = FastAPI(title="BlockWill AI · 로컬 개발 API", version="0.1.0",
     description="디지털 유산 초안 분석과 복구 정책 검증. 서명·송금 권한이 없는 로컬 개발용 API입니다.")
+
+frontend_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "FRONTEND_ORIGINS",
+        "http://127.0.0.1:5173,http://localhost:5173",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=frontend_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
 
 
 @app.exception_handler(RequestValidationError)
