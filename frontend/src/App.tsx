@@ -67,7 +67,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export default function App() {
+function Planner({ onBack }: { onBack: () => void }) {
   const [estateText, setEstateText] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analysisError, setAnalysisError] = useState("");
@@ -176,8 +176,8 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="BlockWill 홈"><span className="brand-mark">BW</span>BlockWill</a>
-        <span className="environment-badge">LOCAL MVP</span>
+        <button className="brand brand-button" type="button" onClick={onBack} aria-label="사용자 홈으로 이동"><span className="brand-mark">BW</span>BlockWill</button>
+        <button className="text-button" type="button" onClick={onBack}>사용자 홈</button>
       </header>
 
       <main id="top">
@@ -253,4 +253,97 @@ export default function App() {
       <footer>BlockWill Local MVP · 분석 결과는 반드시 사용자가 검토해야 합니다.</footer>
     </div>
   );
+}
+
+type Screen = "landing" | "login" | "signup" | "dashboard" | "planner";
+
+function Brand({ onClick }: { onClick: () => void }) {
+  return <button className="brand brand-button" type="button" onClick={onClick}><span className="brand-mark">BW</span>BlockWill</button>;
+}
+
+function Landing({ move }: { move: (screen: Screen) => void }) {
+  return <div className="app-shell public-page">
+    <header className="topbar public-topbar">
+      <Brand onClick={() => move("landing")} />
+      <nav className="header-actions" aria-label="회원 메뉴">
+        <button className="text-button" onClick={() => move("login")}>로그인</button>
+        <button className="primary-button compact-button" onClick={() => move("signup")}>회원가입</button>
+      </nav>
+    </header>
+    <main>
+      <section className="landing-hero">
+        <p className="eyebrow">DIGITAL ESTATE, SAFELY PLANNED</p>
+        <h1>소중한 디지털 자산의<br />다음 주인을 준비하세요.</h1>
+        <p className="intro-copy">BlockWill은 자산을 정리하고 상속에 필요한 정보를 빠짐없이 준비하도록 돕습니다.</p>
+        <div className="hero-actions">
+          <button className="primary-button large-button" onClick={() => move("signup")}>내 유산 계획 시작하기</button>
+          <button className="outline-button large-button" onClick={() => move("login")}>로그인</button>
+        </div>
+      </section>
+      <section className="value-grid" aria-label="BlockWill 주요 원칙">
+        <article><span>01</span><h2>자산을 한곳에서 정리</h2><p>흩어진 지갑과 디지털 계정의 존재와 처리 계획을 기록합니다.</p></article>
+        <article><span>02</span><h2>AI 작성 안내</h2><p>누락된 정보를 질문하고 검토 가능한 유언 계획 초안을 만듭니다.</p></article>
+        <article><span>03</span><h2>검증 후 안전하게 실행</h2><p>미활동만으로 이전하지 않고 사망·관계·서류 확인 절차를 거칩니다.</p></article>
+      </section>
+    </main>
+    <footer>BlockWill · 디지털 유산 설계 및 복구 지원</footer>
+  </div>;
+}
+
+function AuthPage({ mode, move, complete }: { mode: "login" | "signup"; move: (screen: Screen) => void; complete: () => void }) {
+  const signup = mode === "signup";
+  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); complete(); };
+  return <div className="app-shell auth-page">
+    <header className="topbar"><Brand onClick={() => move("landing")} /><button className="text-button" onClick={() => move("landing")}>처음으로</button></header>
+    <main className="auth-main">
+      <section className="auth-card" aria-labelledby="auth-title">
+        <p className="eyebrow">{signup ? "CREATE ACCOUNT" : "WELCOME BACK"}</p>
+        <h1 id="auth-title">{signup ? "BlockWill 시작하기" : "다시 만나 반가워요"}</h1>
+        <p className="auth-copy">{signup ? "내 디지털 유산 계획을 안전하게 준비하세요." : "등록한 유산 계획과 수령 요청을 확인하세요."}</p>
+        <div className="demo-notice">현재 스프린트는 화면 흐름 확인용입니다. 실제 계정 인증은 다음 단계에서 연결됩니다.</div>
+        <form onSubmit={submit} className="auth-form">
+          {signup && <div className="field"><label htmlFor="name">이름</label><input id="name" name="name" autoComplete="name" required placeholder="이름 입력" /></div>}
+          <div className="field"><label htmlFor="email">이메일</label><input id="email" name="email" type="email" autoComplete="email" required placeholder="name@example.com" /></div>
+          <div className="field"><label htmlFor="password">비밀번호</label><input id="password" name="password" type="password" minLength={8} autoComplete={signup ? "new-password" : "current-password"} required placeholder="8자 이상 입력" /></div>
+          {signup && <label className="terms-check"><input type="checkbox" required /><span>서비스 이용약관과 개인정보 처리 안내를 확인했습니다.</span></label>}
+          <button className="primary-button auth-submit">{signup ? "회원가입" : "로그인"}</button>
+        </form>
+        <p className="auth-switch">{signup ? "이미 계정이 있나요?" : "처음 방문하셨나요?"}<button className="inline-button" onClick={() => move(signup ? "login" : "signup")}>{signup ? "로그인" : "회원가입"}</button></p>
+      </section>
+    </main>
+  </div>;
+}
+
+function Dashboard({ move, logout }: { move: (screen: Screen) => void; logout: () => void }) {
+  return <div className="app-shell dashboard-page">
+    <header className="topbar"><Brand onClick={() => move("dashboard")} /><button className="text-button" onClick={logout}>로그아웃</button></header>
+    <main>
+      <section className="dashboard-heading">
+        <p className="eyebrow">MY BLOCKWILL</p><h1>어떤 일을 시작할까요?</h1>
+        <p>자신의 디지털 유산을 준비하거나, 고인이 남긴 유산의 수령 절차를 시작할 수 있습니다.</p>
+      </section>
+      <section className="journey-grid" aria-label="사용자 업무 선택">
+        <article className="journey-card primary-journey">
+          <span className="journey-number">01</span><div><p className="section-kicker">나를 위한 준비</p><h2>나의 디지털 유산 설계하기</h2><p>보유 자산을 정리하고 AI의 안내를 받아 전달 계획과 복구 조건을 준비합니다.</p></div>
+          <button className="primary-button large-button" onClick={() => move("planner")}>설계 시작하기</button>
+        </article>
+        <article className="journey-card">
+          <span className="journey-number">02</span><div><p className="section-kicker">남겨진 유산 확인</p><h2>유산 수령 절차 시작하기</h2><p>본인확인 후 고인이 남긴 계획을 찾고 필요한 증빙 서류를 제출합니다.</p></div>
+          <button className="outline-button large-button" disabled title="다음 스프린트에서 구현됩니다">다음 스프린트에서 연결</button>
+        </article>
+      </section>
+      <aside className="security-strip"><strong>BlockWill 보안 원칙</strong><span>복구 문구·개인키·실제 비밀번호는 어떤 화면에서도 요청하지 않습니다.</span></aside>
+    </main>
+  </div>;
+}
+
+export default function App() {
+  const [screen, setScreen] = useState<Screen>(() => sessionStorage.getItem("blockwill-demo-session") ? "dashboard" : "landing");
+  const completeAuth = () => { sessionStorage.setItem("blockwill-demo-session", "active"); setScreen("dashboard"); };
+  const logout = () => { sessionStorage.removeItem("blockwill-demo-session"); setScreen("landing"); };
+
+  if (screen === "login" || screen === "signup") return <AuthPage mode={screen} move={setScreen} complete={completeAuth} />;
+  if (screen === "dashboard") return <Dashboard move={setScreen} logout={logout} />;
+  if (screen === "planner") return <Planner onBack={() => setScreen("dashboard")} />;
+  return <Landing move={setScreen} />;
 }
