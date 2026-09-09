@@ -1,0 +1,17 @@
+# Node 모듈 (용량이 크고 OS마다 빌드 환경이 달라 레포에 올리면 안 됨)
+node_modules/
+
+
+# 데이터베이스 파일 제외
+*.db
+*.sqlite
+*.sqlite3
+
+
+# 환경 변수 파일 제외 (추후 .env 작성 시)
+.env
+.env.local
+
+# OS 생성 메타데이터 제외
+.DS_Store
+__MACOSX/
