@@ -1,5 +1,12 @@
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 import re
 
 
@@ -69,3 +76,63 @@ class Policy(StrictModel):
 class Confirmation(StrictModel):
     policy: Policy
     confirmed: Literal[True]
+
+class SignupRequest(StrictModel):
+    name: str = Field(min_length=1, max_length=60)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        normalized = value.strip()
+
+        if not normalized:
+            raise ValueError("이름을 입력해주세요.")
+
+        return normalized
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+    @field_validator("password")
+    @classmethod
+    def password_rules(cls, value: str) -> str:
+        if not re.search(r"[A-Za-z]", value):
+            raise ValueError(
+                "비밀번호에는 영문자가 필요합니다."
+            )
+
+        if not re.search(r"\d", value):
+            raise ValueError(
+                "비밀번호에는 숫자가 필요합니다."
+            )
+
+        return value
+
+
+class LoginRequest(StrictModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+
+class UserResponse(StrictModel):
+    id: int
+    name: str
+    email: EmailStr
+    created_at: str
+
+
+class AuthResponse(StrictModel):
+    user: UserResponse
+
+
+class MessageResponse(StrictModel):
+    message: str
