@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import hashlib
 import json
 import os
@@ -6,12 +7,32 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from openai import OpenAIError
-from .models import AnalyzeRequest, Policy, Confirmation
+from .models import (
+    AnalyzeRequest,
+    AuthResponse,
+    Confirmation,
+    Policy,
+    SignupRequest,
+)
+from .auth import hash_password
+from .database import create_user, init_database
 from .estate import analyze
 from .security import SensitiveInput
 
-app = FastAPI(title="BlockWill AI · 로컬 개발 API", version="0.1.0",
-    description="디지털 유산 초안 분석과 복구 정책 검증. 서명·송금 권한이 없는 로컬 개발용 API입니다.")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_database()
+    yield
+
+app = FastAPI(
+    title="BlockWill AI · 로컬 개발 API",
+    version="0.1.0",
+    description=(
+        "디지털 유산 초안 분석과 복구 정책 검증. "
+        "서명·송금 권한이 없는 로컬 개발용 API입니다."
+    ),
+    lifespan=lifespan,
+)
 
 frontend_origins = [
     origin.strip()
@@ -60,6 +81,32 @@ def root():
 def health():
     return {"status": "ok", "mode": "local-development", "chain_write_access": False}
 
+@app.post(
+    "/api/auth/signup",
+    response_model=AuthResponse,
+    status_code=201,
+)
+def signup(payload: SignupRequest):
+    try:
+        user = create_user(
+            name=payload.name,
+            email=str(payload.email),
+            password_hash=hash_password(payload.password),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from None
+
+    return {
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"],
+            "created_at": user["created_at"],
+        }
+    }
 
 @app.post("/api/estate/analyze")
 def estate_analysis(payload: AnalyzeRequest):
