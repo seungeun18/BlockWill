@@ -366,8 +366,8 @@ function Planner({ onBack }: { onBack: () => void }) {
               마세요.
             </p>
             <span>
-              현재 분석은 규칙 기반 데모이며 실제 LLM이
-              아닙니다.
+              AI 분석 결과는 검토용 초안입니다. 확정하기 전에
+              내용을 직접 확인해주세요.
             </span>
           </aside>
         </section>
@@ -438,7 +438,9 @@ function Planner({ onBack }: { onBack: () => void }) {
               <div className="result-summary">
                 <div>
                   <p className="section-kicker">
-                    분석 완료
+                    {analysis.provider === "gemini"
+                      ? "Gemini AI 분석 완료"
+                      : "분석 완료"}
                   </p>
                   <h3>
                     {analysis.assets.length}개의 자산을

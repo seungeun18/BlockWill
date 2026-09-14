@@ -33,7 +33,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
-from openai import OpenAIError
+from openai import OpenAIError, RateLimitError
 from .models import (
     AnalyzeRequest,
     AuthResponse,
@@ -202,9 +202,25 @@ def estate_analysis(payload: AnalyzeRequest):
     except SensitiveInput as exc:
         raise HTTPException(422, str(exc)) from None
     except RuntimeError:
-        raise HTTPException(503, "LLM 설정을 확인해주세요. 원본 입력은 저장되지 않았습니다.") from None
-    except (ValueError, OpenAIError):
-        raise HTTPException(502, "AI 응답을 검증할 수 없습니다. 잠시 후 다시 시도해주세요.") from None
+        raise HTTPException(
+            503,
+            "LLM 설정을 확인해주세요. 원본 입력은 저장되지 않았습니다.",
+        ) from None
+    except RateLimitError:
+        raise HTTPException(
+            429,
+            "Gemini 무료 호출 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
+        ) from None
+    except ValueError:
+        raise HTTPException(
+            502,
+            "Gemini가 반환한 자산 또는 근거가 원문 검증을 통과하지 못했습니다. 다시 분석해주세요.",
+        ) from None
+    except OpenAIError:
+        raise HTTPException(
+            502,
+            "Gemini API 호출에 실패했습니다. API 상태와 설정을 확인해주세요.",
+        ) from None
 
 
 def policy_result(policy: Policy):
