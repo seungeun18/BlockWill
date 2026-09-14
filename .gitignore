@@ -36,3 +36,8 @@ dist/
 
 # 별도로 clone한 작업 폴더
 /BlockWill-github-update/
+
+# TypeScript 빌드 캐시
+*.tsbuildinfo
+/frontend/vite.config.js
+/frontend/vite.config.d.ts
