@@ -1,8 +1,35 @@
+'''
+main.py 기존 기능
+- FastAPI 애플리케이션 생성
+- 프론트엔드 CORS 허용
+- 요청 본문 크기 제한
+- Pydantic 검증 오류에서 민감한 입력값 제거
+- /health 서버 상태 확인
+- /api/estate/analyze 디지털 유산 분석
+- /api/policy/validate 복구 정책 검증
+- /api/policy/confirm 정책 최종 확인
+
+
+새로 추가한 기능
+- 서버 시작 시 init_database() 실행
+- SQLite users 테이블 자동 생성
+- POST /api/auth/signup 회원가입 API
+- 이름·이메일·비밀번호 입력 검증
+- Argon2로 비밀번호 해시 생성
+- 비밀번호 원문 대신 해시만 SQLite에 저장
+- 이메일 대소문자 정규화 및 중복 방지
+- 중복 이메일 요청에 409 Conflict 반환
+- 응답에서 비밀번호와 해시 제외
+- 서버 종료 시 lifespan 정상 종료
+
+'''
+
+
 from contextlib import asynccontextmanager
 import hashlib
 import json
 import os
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -11,16 +38,31 @@ from .models import (
     AnalyzeRequest,
     AuthResponse,
     Confirmation,
+    LoginRequest,
+    MessageResponse,
     Policy,
     SignupRequest,
 )
-from .auth import hash_password
-from .database import create_user, init_database
+from .auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    create_access_token,
+    decode_access_token,
+    get_jwt_secret,
+    hash_password,
+    verify_password,
+)
+from .database import (
+    create_user,
+    find_user_by_email,
+    find_user_by_id,
+    init_database,
+)
 from .estate import analyze
 from .security import SensitiveInput
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    get_jwt_secret()
     init_database()
     yield
 
@@ -45,10 +87,55 @@ frontend_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
+
+AUTH_COOKIE_NAME = "blockwill_session"
+
+AUTH_COOKIE_SECURE = (
+    os.getenv("AUTH_COOKIE_SECURE", "false").lower()
+    == "true"
+)
+
+
+def public_user(user):
+    return {
+        "id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "created_at": user["created_at"],
+    }
+
+
+def require_authenticated_user(request: Request):
+    token = request.cookies.get(AUTH_COOKIE_NAME)
+
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="로그인이 필요합니다.",
+        )
+
+    try:
+        user_id = decode_access_token(token)
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail="로그인 정보가 유효하지 않거나 만료됐습니다.",
+        ) from None
+
+    user = find_user_by_id(user_id)
+
+    if user is None or user["disabled"]:
+        raise HTTPException(
+            status_code=401,
+            detail="로그인 정보를 확인할 수 없습니다.",
+        )
+
+    return user
+
 
 
 @app.exception_handler(RequestValidationError)
@@ -147,3 +234,73 @@ def confirm_policy(payload: Confirmation):
         raise HTTPException(422, "위험한 복구 정책은 확인할 수 없습니다.")
     return {**result, "status": "AWAITING_WALLET_SIGNATURE",
             "note": "이 응답은 온체인 정책을 생성하지 않습니다. 지갑에서 최종 인자와 예치 금액을 확인하고 서명해야 합니다."}
+
+@app.get(
+    "/api/auth/me",
+    response_model=AuthResponse,
+)
+def current_user(request: Request):
+    user = require_authenticated_user(request)
+
+    return {
+        "user": public_user(user),
+    }
+
+@app.post(
+    "/api/auth/login",
+    response_model=AuthResponse,
+)
+def login(
+    payload: LoginRequest,
+    response: Response,
+):
+    user = find_user_by_email(str(payload.email))
+
+    if user is None or not verify_password(
+        payload.password,
+        user["password_hash"],
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="이메일 또는 비밀번호가 올바르지 않습니다.",
+        )
+
+    if user["disabled"]:
+        raise HTTPException(
+            status_code=401,
+            detail="비활성화된 계정입니다.",
+        )
+
+    token = create_access_token(user["id"])
+
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=AUTH_COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+    return {
+        "user": public_user(user),
+    }
+
+@app.post(
+    "/api/auth/logout",
+    response_model=MessageResponse,
+)
+def logout(response: Response):
+    response.delete_cookie(
+        key=AUTH_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=AUTH_COOKIE_SECURE,
+        samesite="lax",
+    )
+
+    return {
+        "message": "로그아웃되었습니다.",
+    }
+
