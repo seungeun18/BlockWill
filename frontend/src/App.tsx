@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import WalletPanel from "./components/WalletPanel";
+import RecoveryPlanPanel from "./components/RecoveryPlanPanel";
 
 import {
   AuthApiError,
@@ -1170,7 +1171,11 @@ function Dashboard({
             유산의 수령 절차를 시작할 수 있습니다.
           </p>
         </section>
+
         <WalletPanel />
+        
+        <RecoveryPlanPanel />
+        
         <section
           className="journey-grid"
           aria-label="사용자 업무 선택"
