@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import WalletPanel from "./components/WalletPanel";
 
 import {
   AuthApiError,
@@ -1169,7 +1170,7 @@ function Dashboard({
             유산의 수령 절차를 시작할 수 있습니다.
           </p>
         </section>
-
+        <WalletPanel />
         <section
           className="journey-grid"
           aria-label="사용자 업무 선택"
